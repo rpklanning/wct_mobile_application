@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import psycopg2
 from psycopg2 import sql
+from neon_db_manager import READ_NEON_DB_TABLE_INTO_DATAFRAME
 import logging
 import streamlit as st
 import datetime
@@ -9,6 +10,32 @@ from datetime import date
 
 # setup error logging capture
 logger = logging.getLogger("neon_db_app")
+
+def DATABASE_READ_AND_STREAMLIT_INPUT_GENERATION():
+    # call function to read the database data needed for the program
+    df_unposted_ledger = READ_NEON_DB_TABLE_INTO_DATAFRAME("wct_unposted_ledger", "unposted_ledger")
+    df_projects_list = READ_NEON_DB_TABLE_INTO_DATAFRAME("wct_data", "projects_list")
+    df_suppliers_list = READ_NEON_DB_TABLE_INTO_DATAFRAME("wct_data", "suppliers_list")
+
+    # call function to get the max value in field "No" in the dataframe: df_unposted_ledger
+    unposted_ledger_next_no_column_value = GET_NEW_NO_COL_RECORD_VALUE(df_unposted_ledger)
+
+    # call function to get list of active projects from dataframe: df_projects_list
+    lst_active_projects = GET_ACTIVE_RECORDS_FROM_DATABASE(df_projects_list, "wct_data/projects_list","Project", "Status")
+
+    # call function to get list of active suppliers from dataframe: df_suppliers_list
+    lst_active_suppliers = GET_ACTIVE_RECORDS_FROM_DATABASE(df_suppliers_list, "wct_data/suppliers_list","Company", "Status")
+
+    # call function to get today's date
+    todays_date = GET_TODAYS_DATE_AND_FORMAT()
+
+    return {
+        "df": df_unposted_ledger,
+        "active projects": lst_active_projects,
+        "active suppliers": lst_active_suppliers,
+        "date":todays_date,
+        "next id" :unposted_ledger_next_no_column_value
+        }
 
 @st.cache_data
 def GET_NEW_NO_COL_RECORD_VALUE(df):
@@ -48,7 +75,6 @@ def GET_NEW_NO_COL_RECORD_VALUE(df):
         logger.info("Obtaining 'No' column max value, incrementing, and converting to string was successful.")
 
     return no_col_next_value
-
 @st.cache_data
 def GET_ACTIVE_RECORDS_FROM_DATABASE(df, dbase, get_column, status_column):
     """
@@ -84,8 +110,8 @@ def GET_TODAYS_DATE_AND_FORMAT():
     day_str = (str(day)).replace("-","")
     return day_str
 
-def RESET_AFTER_SAVING():
-    # delete the camera widgets key to close the camera
+def UPDATE_DATABASES_AND_REFRESH_PROGRAM_DISPLAY():
+    # delete the camera widgets key to close the camera.  When the program is rerun, it will reinitialize.
     if "my_camera_key" in st.session_state:
         del st.session_state["my_camera_key"]
 
@@ -93,8 +119,46 @@ def RESET_AFTER_SAVING():
     st.session_state.generate_photo = False
     st.session_state.generate_new_dataframe = False
 
-    # reset input variables
-    st.session_state.amount_number = 0.00
+    # clear the caches which read the databases and set the default HMI values
+    GET_NEW_NO_COL_RECORD_VALUE.clear()
+    GET_ACTIVE_RECORDS_FROM_DATABASE.clear()
+    GET_TODAYS_DATE_AND_FORMAT.clear()
 
-    # force a rerun of streamlit to refresh the UI
-    st.rerun()
+    # call function to update the databases and the hmi data
+    DATABASE_READ_AND_STREAMLIT_INPUT_GENERATION()
+
+
+def DATABASE_READ_AND_STREAMLIT_INPUT_GENERATION():
+    ##################################### READ DB AND GENERATION EVENT RUNNING #######################################
+    # call function to read the database data needed for the program
+    df_unposted_ledger = READ_NEON_DB_TABLE_INTO_DATAFRAME("wct_unposted_ledger", "unposted_ledger")
+    df_projects_list = READ_NEON_DB_TABLE_INTO_DATAFRAME("wct_data", "projects_list")
+    df_suppliers_list = READ_NEON_DB_TABLE_INTO_DATAFRAME("wct_data", "suppliers_list")
+
+    # call function to get the max value in field "No" in the dataframe: df_unposted_ledger
+    unposted_ledger_next_no_column_value = GET_NEW_NO_COL_RECORD_VALUE(df_unposted_ledger)
+
+    # call function to get list of active projects from dataframe: df_projects_list
+    lst_active_projects = GET_ACTIVE_RECORDS_FROM_DATABASE(df_projects_list, "wct_data/projects_list", "Project",
+                                                           "Status")
+
+    # call function to get list of active suppliers from dataframe: df_suppliers_list
+    lst_active_suppliers = GET_ACTIVE_RECORDS_FROM_DATABASE(df_suppliers_list, "wct_data/suppliers_list", "Company",
+                                                            "Status")
+
+    # call function to get today's date
+    todays_date = GET_TODAYS_DATE_AND_FORMAT()
+
+    return {
+        "df": df_unposted_ledger,
+        "active projects": lst_active_projects,
+        "active suppliers": lst_active_suppliers,
+        "date": todays_date,
+        "next id": unposted_ledger_next_no_column_value
+    }
+
+
+
+
+
+

@@ -3,12 +3,14 @@ import random
 import string
 import time
 import streamlit as st
-from neon_db_manager import READ_NEON_DB_TABLE_INTO_DATAFRAME
+
+from neon_db_manager import UPLOAD_DATAFRAME_TO_NEON_DATABASE
 from logger_configuration import LOGGER_CONFIGURATION
 from misc_functions import GET_NEW_NO_COL_RECORD_VALUE
 from misc_functions import GET_ACTIVE_RECORDS_FROM_DATABASE
 from misc_functions import GET_TODAYS_DATE_AND_FORMAT
-from misc_functions import RESET_AFTER_SAVING
+from misc_functions import DATABASE_READ_AND_STREAMLIT_INPUT_GENERATION
+from misc_functions import UPDATE_DATABASES_AND_REFRESH_PROGRAM_DISPLAY
 from cloudinary_file_manager import UPLOAD_FILE_TO_CLOUDINARY
 import datetime
 from datetime import date
@@ -52,11 +54,16 @@ if "btn_save" not in st.session_state:
 if "btn_refresh" not in st.session_state:
     st.session_state.btn_refresh = False
 
+if "df_revised" not in st.session_state:
+    st.session_state.df_revised = pd.DataFrame(columns = ["Column1", "Columns"])
+
 ###########################
 ### FUNCTIONS CODE AREA ###
 ###########################
 def btn_save_event(image_io):
-
+    ##################
+    ### SAVE PHOTO ###
+    ##################
     # set storage type for a photo
     storage_type = "photos"
     # call function to upload the photo to Cloudinary
@@ -66,22 +73,46 @@ def btn_save_event(image_io):
     else:
         alert1 = st.error("❌ Photo Upload Status: Upload was unsuccessful!  Retain Receipts.")
 
-    # set storage type for a photo
-    storage_type = "error logs"
-    # call function to upload error log to cloudinary
-    error_log_upload_status = UPLOAD_FILE_TO_CLOUDINARY(st.session_state.log_filename,
-                                                        st.session_state.log_filename,
-                                                        storage_type)
-    if error_log_upload_status:
-        alert2 = st.warning("✅ Error Log Upload Status: Upload was successful!")
-    else:
-        alert2 = st.error("❌ Error Log Upload Status: Upload was unsuccessful!")
+    ########################################
+    ### SAVE ERROR LOG IF TOGGLE IS TRUE ###
+    ########################################
+    if st.session_state.upload_error_log:
+        # set storage type for a error log
+        storage_type = "error logs"
+        # call function to upload error log to cloudinary
+        error_log_upload_status = UPLOAD_FILE_TO_CLOUDINARY(st.session_state.log_filename,
+                                                            st.session_state.log_filename,
+                                                            storage_type)
 
+        if error_log_upload_status:
+            alert2 = st.warning("✅ Error Log Upload Status: Upload was successful!")
+        else:
+            alert2 = st.error("❌ Error Log Upload Status: Upload was unsuccessful!")
+
+    ##############################################################################
+    ### UPLOAD AND REPLACE DATABASE: wct_uposted_ledger TABLE: unposted_ledger ###
+    ##############################################################################
+    # call function to upload the data into the database table
+    db_upload_status = UPLOAD_DATAFRAME_TO_NEON_DATABASE(st.session_state.df_revised,
+                                                         "wct_unposted_ledger",
+                                                         "unposted_ledger")
+    if db_upload_status:
+        alert3 = st.warning("✅ Database Upload Status: Upload was successful!")
+    else:
+        alert3 = st.error("❌ Database Upload Status: Upload was unsuccessful!")
+
+    # display the alerts for 3 seconds and then clear
     time.sleep(3)
     alert1.empty()
-    alert2.empty()
-    RESET_AFTER_SAVING()
+    if st.session_state.upload_error_log:
+        alert2.empty()
+    alert3.empty()
 
+    # reset input variables
+    st.session_state.amount_number = 0.00
+
+    # call the function to refresh the databases and to update the streamlit hmi generated values
+    UPDATE_DATABASES_AND_REFRESH_PROGRAM_DISPLAY()
 
 ##############################
 ### MAIN STREAMLIT SECTION ###
@@ -91,7 +122,8 @@ def STREAMLIT_MAIN(next_no_value, todays_date, active_project, active_suppliers)
 
     # page configuration
     st.set_page_config(page_title="Web Cost Tracker Mobile Application", layout="wide")
-    st.markdown('<p style="text-align: center; font-size: 24px;"><b>Web Cost Tracker Mobile Application<b></p>', unsafe_allow_html=True)
+    st.markdown('<p style="text-align: center; font-size: 24px;"><b>Web Cost Tracker Mobile Application<b></p>',
+                unsafe_allow_html=True)
     # change the background color of the application
     st.markdown(
         """
@@ -104,11 +136,16 @@ def STREAMLIT_MAIN(next_no_value, todays_date, active_project, active_suppliers)
         unsafe_allow_html=True
     )
 
-    line_height = '3.5'
-    col1, col2, col3, col4 = st.columns([.5,1,1,.5])
+    line_height = '3.7'
+    col1, col2, col3, col4 = st.columns([2,1,1.5,2])
 
     # add input widgets
     with col2:
+       st.markdown(
+            f"<div style='line-height: {line_height}; font-weight: bold;'>Item ID No:</div>",
+            unsafe_allow_html=True
+        )
+
        st.markdown(
             f"<div style='line-height: {line_height}; font-weight: bold;'>Todays Date:</div>",
             unsafe_allow_html=True
@@ -187,7 +224,7 @@ def STREAMLIT_MAIN(next_no_value, todays_date, active_project, active_suppliers)
                                               )
 
             if img_file_buffer is not None:
-                logger.info("Photo taken.")
+                logger.info("Photo has been taken but not saved.")
                 #--------------------------
                 # image conversion of photo
                 #----------------------------
@@ -199,15 +236,15 @@ def STREAMLIT_MAIN(next_no_value, todays_date, active_project, active_suppliers)
                 bytes_len = len(img_file_buffer.getvalue())
 
                 # display buttons to post or refresh data or application
-                colA, colB, colC = st.columns(3)
-                with colA:
-                    st.button("💾 Save / Post Files", on_click=btn_save_event, args=(image_io,))
+                colA, colB, colC, colD, colE, colF = st.columns([3, 1, 1, 1,1,3])
                 with colB:
-                    st.button("🔄 New / Refresh")
+                    st.button("💾 Save / Post Files", on_click=btn_save_event, args=(image_io,))
                 with colC:
-                    st.write("Photo Size (bytes): ", bytes_len)
-
-
+                    st.button("🔄 New / Refresh")
+                with colD:
+                    st.write("Size (bytes): ", bytes_len)
+                with colE:
+                    st.toggle("Upload Error File", key="upload_error_log")
 
     # EXPANDER TO VIEW DATAFRAME SECTION
     if st.session_state.generate_new_dataframe:
@@ -243,12 +280,12 @@ def STREAMLIT_MAIN(next_no_value, todays_date, active_project, active_suppliers)
             # concatenate the original dataframe and the user data dataframe to create a combined dataframe
             logger.info(f"Attempt to create a combined dataframe consisting of the original and user input data")
             try:
-                df_revised = pd.concat([df_unposted_ledger, df_new_row], axis=0, ignore_index=True)
+                st.session_state.df_revised = pd.concat([df_unposted_ledger, df_new_row], axis=0, ignore_index=True)
                 logger.info(f"Combined dataframe creation was successful.")
             except Exception as e:
                 logger.info(f"Combined dataframe creation failed due to error {e}")
             st.subheader("Revised Dataframe:")
-            st.dataframe(df_revised, hide_index=True)
+            st.dataframe(st.session_state.df_revised, hide_index=True)
 
     # EXPANDER TO VIEW ERROR LOG
     with st.expander(" Display the sessions error log information."):
@@ -256,29 +293,20 @@ def STREAMLIT_MAIN(next_no_value, todays_date, active_project, active_suppliers)
         log_contents = st.session_state.log_stream.getvalue()
         st.code(log_contents if log_contents else "No logs yet.", language="log")
 
-
+############################
 ### MAIN CALLING PROGRAM ###
 ############################
 if __name__ == "__main__":
-    # set the boolean bit for dataframe creation.  This is changed based on "Amount" definition above.
+    # set initial boolean bit value for dataframe creation.  This is changed based on "Amount" definition above.
     generate_new_dataframe = False
 
-    # call function to read the database data needed for the program
-    df_unposted_ledger = READ_NEON_DB_TABLE_INTO_DATAFRAME("wct_unposted_ledger", "unposted_ledger")
-    df_projects_list = READ_NEON_DB_TABLE_INTO_DATAFRAME("wct_data", "projects_list")
-    df_suppliers_list = READ_NEON_DB_TABLE_INTO_DATAFRAME("wct_data", "suppliers_list")
-
-    # call function to get the max value in field "No" in the dataframe: df_unposted_ledger
-    unposted_ledger_next_no_column_value = GET_NEW_NO_COL_RECORD_VALUE(df_unposted_ledger)
-
-    # call function to get list of active projects from dataframe: df_projects_list
-    lst_active_projects = GET_ACTIVE_RECORDS_FROM_DATABASE(df_projects_list, "wct_data/projects_list","Project", "Status")
-
-    # call function to get list of active suppliers from dataframe: df_suppliers_list
-    lst_active_suppliers = GET_ACTIVE_RECORDS_FROM_DATABASE(df_suppliers_list, "wct_data/suppliers_list","Company", "Status")
-
-    # call function to get today's date
-    todays_date =  GET_TODAYS_DATE_AND_FORMAT()
+    # call function to read database and generate the streamlit hmi input data
+    result = DATABASE_READ_AND_STREAMLIT_INPUT_GENERATION()
+    df_unposted_ledger = result["df"]
+    lst_active_projects = result["active projects"]
+    lst_active_suppliers = result["active suppliers"]
+    todays_date = result["date"]
+    unposted_ledger_next_no_column_value = result["next id"]
 
     # call streamlit to display the web page
     STREAMLIT_MAIN(unposted_ledger_next_no_column_value, todays_date, lst_active_projects, lst_active_suppliers)

@@ -41,7 +41,7 @@ def UPLOAD_FILE_TO_CLOUDINARY(image_data, public_id, file_type):
     if not cloudinary_api_key:
         logger.error(f"CRITICAL: Key: {api_key} was NOT found or is empty in the .env file.")
         return None
-    logger.info(f"Key: {api_key} was successfully retreived from the .env file.")
+    logger.info(f"Key: {api_key} was successfully retrieved from the .env file.")
 
     logger.info(f"Attempting to read environment variable api secret: {api_secret} from .env file.")
     cloudinary_api_secret = os.getenv(api_secret)
