@@ -44,12 +44,12 @@ def LOGGER_CONFIGURATION():
         logger.setLevel(logging.INFO)
         logger.propagate = False
 
-        # file handler
-        file_handler = logging.FileHandler(
-            st.session_state.log_filename,
-            mode="a",
-            encoding="utf-8"
-        )
+        # # file handler
+        # file_handler = logging.FileHandler(
+        #     st.session_state.log_filename,
+        #     mode="a",
+        #     encoding="utf-8"
+        # )
         # In-memory Streamlit handler
         stream_handler = logging.StreamHandler(
             st.session_state.log_stream
@@ -59,10 +59,10 @@ def LOGGER_CONFIGURATION():
                                        datefmt="%Y-%m-%d %H:%M:%S"
                                        )
 
-        file_handler.setFormatter(formatter)
+        #file_handler.setFormatter(formatter)
         stream_handler.setFormatter(formatter)
 
-        logger.addHandler(file_handler)
+        #logger.addHandler(file_handler)
         logger.addHandler(stream_handler)
 
     return logger
