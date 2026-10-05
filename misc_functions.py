@@ -11,9 +11,21 @@ from datetime import date
 # setup error logging capture
 logger = logging.getLogger("neon_db_app")
 
+
 def DATABASE_READ_AND_STREAMLIT_INPUT_GENERATION():
-    #TODO need to add description of function
-    # call function to read the database data needed for the program
+    '''
+    Function will call functions to do the following:
+
+    1. Read the Neon database: wct_unposted_ledger, table: unposted_ledger and store in a dataframe.
+    2. Read the Neon database: wct_data, table: projects_list and get a list of active projects.
+    3. Read the Neon database: wct_data, table: suppliers_list and get a list of active suppliers.
+    4. Get the Neon database id key by determing the existing max value in the No column of dataframe: unposted_ledger.
+    Increment the max value by 1.
+    5. Get todays date and format per the project requirement YYYYMMDD.
+
+    The returned information will be stored in st.session.state variables.
+    :return: None
+    '''
 
     logger.info("")
     logger.info("------------------------------------------------------------------------------------")
@@ -49,7 +61,6 @@ def DATABASE_READ_AND_STREAMLIT_INPUT_GENERATION():
     logger.info("Success - List of active suppliers has been generated.")
     logger.info(f"Active suppliers:{st.session_state.lst_active_suppliers}")
 
-
     logger.info("")
     logger.info("Attempt to determine database key by reading dataframe: df_unposted_ledger, get the max value in the "
                 "No column, and increment the value by 1")
@@ -66,20 +77,25 @@ def DATABASE_READ_AND_STREAMLIT_INPUT_GENERATION():
 @st.cache_data
 def GET_NEW_NO_COL_RECORD_VALUE(df):
     """
-    Function will receive the dataframe and read the No column into a list, if possible.  The No column is a key field
-    so the values cannot be duplicated.  If no records exist in the database No column, then the first record will have
-    a No value of 0.  If records exists, the list wil be created and converted to integers and so that the
-    maximum value can be determined.  The next record No value will be determined by incrementing the maximum value by
-    1.  This will be converted to a string and returned to the calling program.
+    Function will receive the dataframe and read the No column into a list, if possible.  The No column is database
+    key field so the values cannot be duplicated.  If no records exist in the database No column, then the next_id will
+    have a value 0.  If records exists, a list of all data in the No column will be created.  All items in the list will
+    be converted into integers.  The next_id value will be determined based on the maximum value in the list and
+    incremented by 1.  The next_id value will be converted to a string.  This value will be stored in a st.session_state
+     variable.
+
     :param df: dataframe containing the No column
-    :return: no_col_new_value - string of the incremented max value of the No column
+    :return: no_col_next_value - string containing the next id no. or "99999" which indicates an error.
     """
 
+    logger.info("")
+    logger.info("------------------------------------------------------------------------------------")
+    logger.info("Module: misc_functions.py     Function: GET_NEW_NO_COL_RECORD_VALUE")
     logger.info("")
     msg = ("FUNCTION WILL PARSE THE DATABASE/TABLE: wct_unposted_ledger/unposted_ledger MAX COLUMN: No VALUE AND "
            "INCREMENT BY 1")
     logger.info(msg)
-    logger.info("Attempt to convert 'No' column to list.")
+    logger.info("Attempt to convert 'No' column of dataframe into a list.")
     # read the "No" field of the dataframe into a list.
     try:
         lst_no_col_str = df['No'].tolist()
@@ -91,7 +107,7 @@ def GET_NEW_NO_COL_RECORD_VALUE(df):
     except KeyError as e:
         logger.error(f"KeyError captured: The column {e} does not exist in the DataFrame.")
         lst_no_col_str = []
-        no_col_next_value = "X"
+        no_col_next_value = "99999"
         return no_col_next_value
 
     # check if there is any data in the database table.
@@ -102,14 +118,15 @@ def GET_NEW_NO_COL_RECORD_VALUE(df):
         # convert the string values in No column to integers using list comprehension and get the max value
         lst_no_col_int = [int(x) for x in lst_no_col_str]
         no_col_max_value = max(lst_no_col_int)
-        logger.info(f"No column has been converted to integers and the max value is: {no_col_max_value}")
+        logger.info(f"No column of dataframe has been converted to integers and the max value is: {no_col_max_value}")
 
         # increment the max value in No column of dataframe by 1 and convert to string
         no_col_next_value = str(no_col_max_value + 1)
         logger.info(f"No column has been incremented and the next id value is: {no_col_next_value}")
 
         if no_col_next_value is not "":
-            logger.info("Obtaining 'No' column max value, incrementing, and converting to string was successful.")
+            logger.info("Success - Obtained 'No' column max value, incremented by 1, and converted value: "
+                        "{no_col_next_value} to string.")
 
     return no_col_next_value
 
@@ -117,49 +134,80 @@ def GET_NEW_NO_COL_RECORD_VALUE(df):
 @st.cache_data
 def GET_ACTIVE_RECORDS_FROM_DATABASE(df, dbase, get_column, status_column):
     """
-    Function will parse a dataframe and return a list of get_column items based on whether the status_colum
-     is "Active"
+    Function will parse a dataframe, which is derived from a database, and return a list of values in a column
+    (get_column) based on the value of another column (status_column) being "Active"
     :param df: dataframe containing the data to be obtained
     :param get_column: column name to be returned from the dataframe based on the status_column
     :param status_column: column name which will be evaluated to confirm it is "Active"
-    :return: active_list - list of get column records
+    :return: active_list - list of get_column values or empty on Error
     """
 
-
     logger.info("")
-    msg = (f"PARSE DATABASE/TABLE: {dbase} TO GET A LIST OF RECORDS FROM COLUMN: {get_column} BASED ON COLUMN: {status_column}"
-           f" VALUE BEING 'Active'.")
+    logger.info("------------------------------------------------------------------------------------")
+    logger.info("Module: misc_functions.py     Function: GET_ACTIVE_RECORDS_FROM_DATABASE")
+    logger.info("Starting function to get Active Records from the dataframe, which is derived from a database")
+    msg = (
+        f"FUNCTION WILL PARSE A DATAFRAME, WHICH IS DERIVED FROM DATABASE/TABLE: {dbase}, TO OBTAIN A LIST OF VALUES "
+        f"FROM A SPECIFIC COLUMN: {get_column} BASED ON THE VALUE IN COLUMN: {status_column} BEING 'Active'.")
     logger.info(msg)
     # parse the database
     try:
+        # parse the df to develop an active list
+        msg = (f"Attempt to get list of records in dataframe column: {get_column} based on value in column:"
+               f" {status_column} being 'Active'.")
+        logger.info(msg)
         active_list = df.loc[df['Status'] == "Active", get_column].tolist()
-        logger.info("Generation of the active {get_column} list was successful.")
+        logger.info("Success - Generating active column: {get_column}.")
+        logger.info(f"Active columns: {active_list}")
         return active_list
 
     except KeyError as e:
-        logger.error(f"KeyError captured: The column {e} does not exist in the DataFrame.")
+        logger.error(f"Error - KeyError captured: Column {e} does not exist in the dataFrame.")
         active_list = []
-
+        logger.info(f"Active columns: {active_list}")
         return active_list
 
 
 @st.cache_data
 def GET_TODAYS_DATE_AND_FORMAT():
+    """
+    Function will get todays date and format in YYYYMMDD format.
+    :return: day_str - string containing todays date
+    """
+
     logger.info("")
+    logger.info("------------------------------------------------------------------------------------")
+    logger.info("Module: misc_functions.py     Function: GET_TODAYS_DATE_AND_FORMAT")
+    logger.info("")
+    logger.info("Starting function to get todays date.")
 
     # generate and display today's data
     day = date.today()
-    day_str = (str(day)).replace("-","")
+    day_str = (str(day)).replace("-", "")
+    logger.info(f"Success - Obtained todays date: {day_str}")
     return day_str
 
 
 def CLEAR_CACHES_AND_CALL_UPDATE_DBASES():
-    # TODO add description
+    """
+    Function will do the following:
+    1. Clear the streamlit caches.  The caches to be cleared are:
+        READ_NEON_DB_TABLE_INTO_DATAFRAME - allows rereading of the databases
+        GET_NEW_NO_COL_RECORD_VALUE.clear() - allows getting the next value from the database
+        GET_ACTIVE_RECORDS_FROM_DATABASE.clear() - allows getting the active records from the databases
+        GET_TODAYS_DATE_AND_FORMAT.clear() - allows getting todays date
+
+        Caches are used so that streamlit does not read the databases every cycle only on explicit direction
+
+    2. Call the function: DATABASE_READ_AND_STREAMLIT_INPUT_GENERATION.  This function will update the data by
+        sequentially reading all the databases and list, values, etc. used by the streamlit widgets.
+
+    :return: None
+    """
     logger.info("------------------------------------------------------------------------------------")
     logger.info("Module: misc_functions.py     Function: CLEAR_CACHES_AND_CALL_UPDATE_DBASES")
     try:
-        logger.info("")
-        logger.info("Clear Caches and Call Update Database Function Actions")
+        logger.info("Starting function to Clear Caches and Call Update Database Function Actions")
         # delete the camera widgets key to close the camera.  When the program is rerun, it will reinitialize.
         if "my_camera_key" in st.session_state:
             del st.session_state["my_camera_key"]
@@ -184,10 +232,3 @@ def CLEAR_CACHES_AND_CALL_UPDATE_DBASES():
 
         status = "False"
         return status
-
-
-
-
-
-
-

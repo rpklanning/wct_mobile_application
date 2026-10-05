@@ -9,9 +9,9 @@ from typing import Optional
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
-
 # setup error logging capture
 logger = logging.getLogger("neon_db_app")
+
 
 @st.cache_data
 def READ_NEON_DB_TABLE_INTO_DATAFRAME(database_to_read, table_to_read):
@@ -26,6 +26,7 @@ def READ_NEON_DB_TABLE_INTO_DATAFRAME(database_to_read, table_to_read):
     logger.info("")
     logger.info("------------------------------------------------------------------------------------")
     logger.info("Module: neon_db_manager.py     Function: READ_NEON_Db_TABLE_INTO_DATAFRAME")
+    logger.info("STARTING READ_NEON_Db_TABLE_INTO_DATAFRAME EVENT")
     logger.info(f"ATTEMPTING TO READ FROM NEON DATABASE: {database_to_read} TABLE: {table_to_read}")
     logger.info(f"Assign correct env file KEY based on the database: {database_to_read}.")
     # map to the correct .env file KEY name
@@ -100,47 +101,52 @@ def READ_NEON_DB_TABLE_INTO_DATAFRAME(database_to_read, table_to_read):
 
 def GET_NEON_DATABASE_ENGINE(database_to_write, table_to_write) -> Engine:
     """
-    Create a SQLAlchemy engine for Neon/PostgreSQL.
-
-    The connection string can be supplied directly or through
-    the NEON_DATABASE_URL environment variable.
-
-    Example:
-        postgresql://user:password@ep-example.us-east-2.aws.neon.tech/dbname?sslmode=require
+    Function will do the following:
+    1.  Based on the database_to_write for the different neon databases (wct_ledger, wct_unposted_ledger, and wct_data)
+      determine the correct env key.
+    2.  Using the env key, access the .env file and get the database URL.  The database URL contains the password to
+      access the database.  The password is stripped off in displaying the db_url to the logger.
+    3.  Create a SQLAlchemy engine for Neon/PostgreSQL.
+    :param database_to_write: database table to be accessed
+    :param table_to_write: table within the database to he accessed
+    :return
     """
     logger.info("")
-    logger.info(f"CREATE DATABASE ENGINE BY ATTEMPTING TO READ FROM DATABASE: {database_to_write} "
-                f"TABLE: {table_to_write}")
-    logger.info(f"Assign correct env file KEY based on the database: {database_to_write}.")
-    # map to the correct .env file KEY name
+    logger.info("------------------------------------------------------------------------------")
+    logger.info("STARTING GET_NEON_DATABASE_ENGINE_EVENT")
+    logger.info(f"Attempt to access database: {database_to_write} table: {table_to_write}")
+
+    logger.info(f"Assign correct env file key based on the database: {database_to_write}.")
+    # map database to the correct .env file KEY name
     if database_to_write == "wct_unposted_ledger":
         env_key = "NEON_WCT_UNPOSTED_LEDGER_DB_URL"
+        logger.info(f"Success - Env key {env_key} determined for {database_to_write} table: {table_to_write}")
     elif database_to_write == "wct_ledger":
         env_key = "NEON_WCT_LEDGER_DB_URL"
+        logger.info(f"Success - Env key {env_key} determined for {database_to_write} table: {table_to_write}")
     elif database_to_write == "wct_data":
         env_key = "NEON_WCT_DATA_DB_URL"
+        logger.info(f"Success - Env key {env_key} determined for {database_to_write} table: {table_to_write}")
     else:
-        raise ValueError(f"Invalid database name requested: '{database_to_write}'. "
-        f"Not found in database mapping."
-        )
-        # TODO remove
-        #logger.error(f"Invalid database name requested: '{database_to_write}'. Not from mapping logic!")
-        #return False
+        raise ValueError(f"Error - Invalid database name requested: {database_to_write}. Not found in "
+                         f"database mapping.")
 
-    logger.info(f"Attempting to read environment variable key '{env_key}' from .env file.")
+    logger.info("")
+    logger.info(f"Attempt to read environment variable key '{env_key}' from .env file.")
     db_url = os.getenv(env_key)
 
     # check if the key exists or is completely empty in the .env file
     if not db_url:
         raise ValueError(
-            f"CRITICAL: Environment variable '{env_key}' "
-            f"was not found or is empty."
+            f"CRITICAL ERROR: Environment variable {env_key} was not found or is empty in the .env file."
         )
+    else:
+        logger.info(f"SUCCESS - Environment variable {env_key} was found in the .env file.")
 
     # extracts the host domain from 'postgresql://user:pass@host/db' while masking the password
     safe_host = db_url.split("@")[-1] if "@" in db_url else "Unknown Host"
-    logger.info(f"Successfully retrieved connection string from .env. Target host: {safe_host}")
-    logger.info("Database engine successfully created!")
+    logger.info(f"Success - retrieved connection string from .env. Target host: {safe_host}")
+    logger.info("Success - database engine successfully created!")
     logger.info("")
 
     return create_engine(db_url, pool_pre_ping=True)
@@ -152,15 +158,17 @@ def UPLOAD_DATAFRAME_TO_NEON_DATABASE(
         table_name: str,
         database_url: Optional[str] = None):
     """
-    Replace a PostgreSQL/Neon table with the contents of a dataFrame.
+    Function will replace a PostgreSQL/Neon table with the contents of a dataFrame in the following sequence:
 
-    Process:
-        1. Create a staging table using the target table's structure.
-        2. Copy the dataframe into the staging table.
-        3. Verify all dataframe rows were copied.
-        4. Replace the target table contents from staging.
-        5. Verify the final row count.
-        6. Commit the transaction.
+    1.  Check that the dataframe being passed is valid.
+    2.  Validate the database name and the table name have been passed
+    3.  Validate that the database name and table name are valid SQL identifiers
+    Create a staging table using the target table's structure.
+    2. Copy the dataframe into the staging table.
+    3. Verify all dataframe rows were copied.
+    4. Replace the target table contents from staging.
+    5. Verify the final row count.
+    6. Commit the transaction.
 
     Parameters
     ----------
@@ -227,8 +235,8 @@ def UPLOAD_DATAFRAME_TO_NEON_DATABASE(
         logger.info("")
         msg = "Validate that database name and table name can be safety passed to SQL-characters, length, identifier."
         logger.info(msg)
-        _validate_identifier(database_name)
-        _validate_identifier(table_name)
+        VALIDATE_SQL_IDENTIFIER(database_name)
+        VALIDATE_SQL_IDENTIFIER(table_name)
         logger.info("Validated - Database name and table name are acceptable to SQL!")
 
     except (ValueError, TypeError) as e:
@@ -261,7 +269,6 @@ def UPLOAD_DATAFRAME_TO_NEON_DATABASE(
     df_expected_rows = len(df)
     logger.info(f"Dataframe length = {df_expected_rows}")
 
-
     logger.info("")
     logger.info("Attempting to connect to Neon database...")
     try:
@@ -278,7 +285,8 @@ def UPLOAD_DATAFRAME_TO_NEON_DATABASE(
             ).scalar_one()
 
             if connected_database != database_name:
-                raise ValueError(f"Error - Connected to database: '{connected_database} but expected '{database_name}'.")
+                raise ValueError(
+                    f"Error - Connected to database: '{connected_database} but expected '{database_name}'.")
             else:
                 logger.info(f"Validated - program is connected to to correct database: '{connected_database}'.")
 
@@ -367,7 +375,7 @@ def UPLOAD_DATAFRAME_TO_NEON_DATABASE(
             # ---------------------------------------------------------------------------------------------------
             logger.info("")
             msg = ("Check that the number of rows in dataframe is equal the number of rows in staging table: "
-                        "{staging_table}.")
+                   "{staging_table}.")
             logger.info(msg)
 
             with neon_engine.begin() as verify_connection:
@@ -385,7 +393,7 @@ def UPLOAD_DATAFRAME_TO_NEON_DATABASE(
             if staging_db_row_count != df_expected_rows:
                 raise RuntimeError(
                     f"Error - Staging table to dataframe row count mismatch.  Reqd: Staging = dataframe."
-                    f"Dataframe {df } row count: {df_expected_rows}, "
+                    f"Dataframe {df} row count: {df_expected_rows}, "
                     f"but Staging table {staging_table} contains: {staging_db_row_count} rows."
                 )
             else:
@@ -467,12 +475,13 @@ def UPLOAD_DATAFRAME_TO_NEON_DATABASE(
                         '''
                     )
                 ).scalar_one()
-                logger.info(f"Modified database: {database_name} table: {table_name} row count: {mod_table_final_count}")
+                logger.info(
+                    f"Modified database: {database_name} table: {table_name} row count: {mod_table_final_count}")
                 logger.info(f"Dataframe row count: {df_expected_rows}")
 
                 if mod_table_final_count != df_expected_rows:
                     raise RuntimeError(
-                        f"Error - Modified table: {table_name} from staging table: {staging_table } row count mismatch."
+                        f"Error - Modified table: {table_name} from staging table: {staging_table} row count mismatch."
                         f" Expected {df_expected_rows}, "
                         f"but found {mod_table_final_count}."
                     )
@@ -525,9 +534,8 @@ def UPLOAD_DATAFRAME_TO_NEON_DATABASE(
         logger.info("Success - disposed of database engine.")
 
 
-
 # TODO make uppercase
-def _validate_identifier(identifier: str) -> None:
+def VALIDATE_SQL_IDENTIFIER(identifier: str) -> None:
     """
     Validate a PostgreSQL identifier.
 

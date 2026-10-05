@@ -1,23 +1,13 @@
 import io
-import random
-import string
 import time
 import streamlit as st
-
 from neon_db_manager import UPLOAD_DATAFRAME_TO_NEON_DATABASE
 from logger_configuration import LOGGER_CONFIGURATION
-from misc_functions import GET_NEW_NO_COL_RECORD_VALUE
-from misc_functions import GET_ACTIVE_RECORDS_FROM_DATABASE
-from misc_functions import GET_TODAYS_DATE_AND_FORMAT
 from misc_functions import DATABASE_READ_AND_STREAMLIT_INPUT_GENERATION
 from misc_functions import CLEAR_CACHES_AND_CALL_UPDATE_DBASES
 from cloudinary_file_manager import UPLOAD_FILE_TO_CLOUDINARY
-import datetime
-from datetime import date
 import pandas as pd
-from io import FileIO
 from dotenv import load_dotenv
-import sqlalchemy  # Or sqlite3 / libsql depending on your driver
 
 #######################################################################
 # PROGRAM CONFIGURATION PRIOR TO RUNNING MAIN SECTION CODE
@@ -64,10 +54,10 @@ if "btn_refresh" not in st.session_state:
     st.session_state.btn_refresh = False
 
 if "df_uposted_ledger" not in st.session_state:
-    st.session_state.df_unposted_ledger = pd.DataFrame(columns = ["Column1", "Columns"])
+    st.session_state.df_unposted_ledger = pd.DataFrame(columns=["Column1", "Columns"])
 
 if "df_revised" not in st.session_state:
-    st.session_state.df_revised = pd.DataFrame(columns = ["Column1", "Columns"])
+    st.session_state.df_revised = pd.DataFrame(columns=["Column1", "Columns"])
 
 if "todays_date" not in st.session_state:
     st.session_state.todays_date = ""
@@ -76,9 +66,17 @@ if "todays_date" not in st.session_state:
 ### FUNCTIONS CODE AREA
 #######################################################################
 def BTN_REFRESH_EVENT():
-    # TODO add function description
+    """
+    Event which is triggered when the Refresh button is pressed.
+    :return:
+    """
     logger.info("")
-    logger.info("### START EXECUTION OF BUTTON SAVE EVENT ###")
+    logger.info("---------------------------------------------------------------------------")
+    logger.info("Module: main.py    Function: BTN_REFRESH_EVENT")
+    logger.info("### START EXECUTION OF BUTTON REFRESH EVENT")
+
+    # call the function to read the database and update the streamlit inputs
+    DATABASE_READ_AND_STREAMLIT_INPUT_GENERATION()
 
 ###################################################################
 ### MAIN STREAMLIT SECTION
@@ -88,7 +86,6 @@ def STREAMLIT_MAIN():
     logger.info("START OF STREAMLIT PROGRAM")
     logger.info("############################################################################")
     logger.info("Module: main.py     Function: ----")
-
     logger.info("Configure web page layout")
     # page configuration
     st.set_page_config(page_title="Web Cost Tracker Mobile Application", layout="wide")
@@ -108,42 +105,40 @@ def STREAMLIT_MAIN():
 
     logger.info("Insert HMI labels")
     line_height = '3.7'
-    col1, col2, col3, col4 = st.columns([2,1,1.5,2])
+    col1, col2, col3, col4 = st.columns([2, 1, 1.5, 2])
 
     # ================================================================
     # DISPLAY THE LABELS IN COLUMN 1
     # ================================================================
     with col2:
-       st.markdown(
-            f"<div style='line-height: {line_height}; font-weight: bold;'>Item ID No:</div>",
-            unsafe_allow_html=True
-        )
+        st.markdown(f"<div style='line-height: {line_height}; font-weight: bold;'>Item ID No:</div>",
+                    unsafe_allow_html=True)
 
-       st.markdown(
+        st.markdown(
             f"<div style='line-height: {line_height}; font-weight: bold;'>Todays Date:</div>",
             unsafe_allow_html=True
         )
 
-       st.markdown(
+        st.markdown(
             f"<div style='line-height: {line_height}; font-weight: bold;'>Select Charge Type:</div>",
             unsafe_allow_html=True
-       )
-       st.markdown(
+        )
+        st.markdown(
             f"<div style='line-height: {line_height}; font-weight: bold;'>Select Active Project:</div>",
             unsafe_allow_html=True
-       )
-       st.markdown(
+        )
+        st.markdown(
             f"<div style='line-height: {line_height}; font-weight: bold;'>Select Active Supplier:</div>",
             unsafe_allow_html=True
-       )
-       st.markdown(
+        )
+        st.markdown(
             f"<div style='line-height: {line_height}; font-weight: bold;'>Enter Charge Amount:</div>",
             unsafe_allow_html=True
-       )
-       st.markdown(
+        )
+        st.markdown(
             f"<div style='line-height: {line_height}; font-weight: bold;'>Generated Storage ID:</div>",
             unsafe_allow_html=True
-       )
+        )
 
     # ================================================================
     # DISPLAY THE INPUT WIDGETS IN COLUMN 2
@@ -154,9 +149,9 @@ def STREAMLIT_MAIN():
 
         id_no_placeholder = st.empty()
 
-        todays_date_placeholder =st.empty()
+        todays_date_placeholder = st.empty()
 
-        unposted_item_types = ['Matl','Sub', 'Equip']
+        unposted_item_types = ['Matl', 'Sub', 'Equip']
         selected_type = st.selectbox("Select the Unposted Item Type:",
                                      options=unposted_item_types,
                                      label_visibility="collapsed")
@@ -172,9 +167,10 @@ def STREAMLIT_MAIN():
         amount_number_placeholder = st.empty()
 
         # generate the unique storage_id from the user inputs.  Add the jpg extension used by Chrome and Safari.
-        st.session_state["storage_id"] = (selected_project + "_" + st.session_state.todays_date + "_" +
-                                          selected_supplier + "_" + selected_type + "_" +
-                                          st.session_state.next_id_no +".jpg")
+        if selected_supplier is not None and selected_project is not None:
+            st.session_state["storage_id"] = (selected_project + "_" + st.session_state.todays_date + "_" +
+                                              selected_supplier + "_" + selected_type + "_" +
+                                              st.session_state.next_id_no + ".jpg")
 
         st.text_input("storage_id",
                       key="storage_id",
@@ -186,12 +182,14 @@ def STREAMLIT_MAIN():
     # ===========================================================================
     logger.info("Insert HMI control panel widgets")
     # display the control panel with buttons (refresh, save) and toggles (upload photo, upload error log)
-    colA, colB, colC, colD, colE, colF = st.columns([3, 1, 1, 1,1,3])
+    colA, colB, colC, colD, colE, colF = st.columns([3, 1, 1, 1, 1, 3])
     with colB:
         # save button configuration is below - it must be reset after evaluating amount, photo toggle and photo status
         save_button_placeholder = st.empty()
     with colC:
-        st.button("🔄 New / Refresh", on_click=BTN_REFRESH_EVENT)
+        st.button("🔄 New / Refresh",
+                  on_click=BTN_REFRESH_EVENT,
+                  use_container_width=True)
     with colD:
         st.toggle("Upload Photo File",
                   key="toggle_upload_photo")
@@ -208,7 +206,7 @@ def STREAMLIT_MAIN():
     # ============================================================
     if st.session_state.toggle_upload_photo:
         logger.info("Camera enabled.")
-        colX, colY, colZ = st.columns([1,4,1])
+        colX, colY, colZ = st.columns([1, 4, 1])
         with colY:
             # configure camera input buffer
             logger.info("Configure inlet file buffer to enable taking a photo.")
@@ -240,12 +238,13 @@ def STREAMLIT_MAIN():
     with save_button_placeholder:
 
         if st.button(
-                "Save",
-                key="save_button"):
+                "💾 Save Data / Files",
+                key="save_button",
+                use_container_width=True):
 
             # ====================================================================
-            # BUTTON SAVE EVENT
-            #=====================================================================
+            # BEGIN THE BUTTON SAVE EVENT
+            # =====================================================================
             logger.info("")
             logger.info("------------------------------------------------------------------")
             logger.info("START EXECUTION OF BUTTON SAVE EVENT")
@@ -360,7 +359,7 @@ def STREAMLIT_MAIN():
                                 error_log_file = io.BytesIO(error_log_contents.encode("utf-8"))
                                 error_log_file.seek(0)
 
-                                # set storage type for a error log
+                                # set storage type for an error log
                                 storage_type = "error logs"
 
                                 # call function to upload error log to cloudinary
@@ -375,9 +374,9 @@ def STREAMLIT_MAIN():
                             logger.info(f"Call function to upload new data to Neon database.")
                             # call function to upload the data into the database table
                             db_upload_status = UPLOAD_DATAFRAME_TO_NEON_DATABASE(st.session_state.df_revised,
-                                                              "wct_unposted_ledger",
-                                                              "unposted_ledger")
-                            if db_upload_status == False:
+                                                                                 "wct_unposted_ledger",
+                                                                                 "unposted_ledger")
+                            if not db_upload_status:
                                 raise ValueError(
                                     " Error - File: Neon_db_manager, Function: UPLOAD_DATAFRAME_TO_NEON_DATABASE"
                                     "could not proceed.  Save event ended!"
@@ -397,7 +396,7 @@ def STREAMLIT_MAIN():
                             st.session_state.generate_revised_dataframe = False
 
                             # update the status message
-                            status_msg = "❌ Input Status: Amount cannot be zero!"
+                            # status_msg = "❌ Input Status: Amount cannot be zero!"
 
                         except Exception as e:
                             st.error("❌ Error updating the database or saving files.  Retain receipts!")
@@ -408,8 +407,6 @@ def STREAMLIT_MAIN():
                         logger.info("")
                         logger.info("Call function to clear the caches and update the database derived information")
                         CLEAR_CACHES_AND_CALL_UPDATE_DBASES()
-
-
 
     # ============================================================
     # RENDER THE ID NO PLACEHOLDER
@@ -459,14 +456,14 @@ def STREAMLIT_MAIN():
             logger.info("Attempt to generate dataframe containing new record data from user inputs.")
             try:
                 df_new_row = pd.DataFrame({
-                    "No":[int(st.session_state.next_id_no)],
-                    "Project":[selected_project],
-                    "Date":[st.session_state.todays_date],
-                    "Amount":[str(round(st.session_state.amount_number, 2))],
-                    "Supplier":[selected_supplier],
-                    "Posted":["No"],
-                    "Photo ID":[st.session_state["storage_id"]],
-                    "Type":[selected_type]
+                    "No": [int(st.session_state.next_id_no)],
+                    "Project": [selected_project],
+                    "Date": [st.session_state.todays_date],
+                    "Amount": [str(round(st.session_state.amount_number, 2))],
+                    "Supplier": [selected_supplier],
+                    "Posted": ["No"],
+                    "Photo ID": [st.session_state["storage_id"]],
+                    "Type": [selected_type]
                 })
                 logger.info(f"Success - created new dataframe containing record data from user inputs.")
             except Exception as e:
@@ -496,12 +493,11 @@ def STREAMLIT_MAIN():
         log_contents = st.session_state.log_stream.getvalue()
         st.code(log_contents if log_contents else "No Error Logs currently exists.", language="log")
 
+
 ##############################################################################
 ### MAIN CALLING PROGRAM
 ##############################################################################
 if __name__ == "__main__":
-
     # call functions to read database and generate the streamlit hmi input data
     DATABASE_READ_AND_STREAMLIT_INPUT_GENERATION()
     STREAMLIT_MAIN()
-

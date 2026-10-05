@@ -17,6 +17,7 @@ cloud_name = "CLOUDINARY_CLOUD_NAME"
 api_key = "CLOUDINARY_API_KEY"
 api_secret = "CLOUDINARY_API_SECRET"
 
+
 def UPLOAD_FILE_TO_CLOUDINARY(image_data, public_id, file_type):
     '''
     Function will connect to the Cloudinary file store and upload the file into the appropriate location with the
@@ -27,7 +28,9 @@ def UPLOAD_FILE_TO_CLOUDINARY(image_data, public_id, file_type):
     :return:
     '''
     logger.info("")
-    logger.info(f"ATTEMPTING TO UPLOAD FILE: {public_id} OF TYPE: {file_type} TO CLOUDINARY" )
+    logger.info("---------------------------------------------------------------------------")
+    logger.info("STARTING UPLOAD_FILE_TO_CLOUDINARY EVENT")
+    logger.info(f"ATTEMPTING TO UPLOAD FILE: {public_id} OF TYPE: {file_type} TO CLOUDINARY")
 
     logger.info(f"Attempting to read environment variable cloud name: {cloud_name} from .env file.")
     cloudinary_cloud = os.getenv(cloud_name)
