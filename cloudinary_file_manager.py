@@ -1,6 +1,8 @@
+"""
+Module handles uploading and downloading files from the Cloudinary website.
+"""
 import cloudinary
 import cloudinary.uploader
-import streamlit as st
 import logging
 from dotenv import load_dotenv
 import os
@@ -19,14 +21,14 @@ api_secret = "CLOUDINARY_API_SECRET"
 
 
 def UPLOAD_FILE_TO_CLOUDINARY(image_data, public_id, file_type):
-    '''
+    """
     Function will connect to the Cloudinary file store and upload the file into the appropriate location with the
     appropriate file name.  The location is determined based on the file_type.
     :param image_data: the data to be uploaded to Cloudinary
     :param public_id: the name of the file in Web Cost Tracker and Cloudinary
     :param file_type: the type of file to be uploaded (e.g., photos, miscellaneous, or error logs)
     :return:
-    '''
+    """
     logger.info("")
     logger.info("---------------------------------------------------------------------------")
     logger.info("STARTING UPLOAD_FILE_TO_CLOUDINARY EVENT")
@@ -37,7 +39,7 @@ def UPLOAD_FILE_TO_CLOUDINARY(image_data, public_id, file_type):
     if not cloudinary_cloud:
         logger.error(f"CRITICAL: Cloud: {cloud_name} was NOT found or is empty in the .env file.")
         return None
-    logger.info(f"Cloud: {cloud_name} was successfully retreived from the .env file.")
+    logger.info(f"Cloud: {cloud_name} was successfully retrieved from the .env file.")
 
     logger.info(f"Attempting to read environment variable api key: {api_key} from .env file.")
     cloudinary_api_key = os.getenv(api_key)
@@ -71,12 +73,11 @@ def UPLOAD_FILE_TO_CLOUDINARY(image_data, public_id, file_type):
         subfolder = "/Photos"
         resource = "image"
     elif file_type == "miscellaneous":
-        # files stored are typically pdf uploaded from email
+        # files stored are typically PDF uploaded from email
         subfolder = "/Miscellaneous"
         resource = "raw"
     else:
-        # storage of error logs
-        # files stored are text files from the python program
+        # files stored are text files from the python logger
         subfolder = "/Error_Logs"
         resource = "raw"
     logger.info("File type = ", file_type)
@@ -95,6 +96,9 @@ def UPLOAD_FILE_TO_CLOUDINARY(image_data, public_id, file_type):
             resource_type=resource
         )
         logger.info(f"Successfully uploaded file: {public_id} to Cloudinary subfolder: {subfolder}")
+        logger.info(f"Successfully uploaded {response.get('resource_type')}: {public_id}. "
+                    f"Format: {response.get('format')}, Size: {response.get('bytes')} bytes. "
+                    f"URL: {response.get('secure_url')}")
         upload_successful = True
         return upload_successful
 

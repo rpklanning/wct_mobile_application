@@ -1,11 +1,14 @@
-import sys
+"""
+Module configures the logger for use on the web application.
+"""
 import io
 import streamlit as st
-from datetime import date, datetime
+from datetime import datetime
 import logging
 
 # setup error logging capture
 logger = logging.getLogger("neon_db_app")
+
 
 def LOGGER_CONFIGURATION():
     """
@@ -23,7 +26,7 @@ def LOGGER_CONFIGURATION():
     # -----------------------------------------------------------------------------
     if "log_filename" not in st.session_state:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        st.session_state.log_filename = ( f"Error_Log_{timestamp}.log" )
+        st.session_state.log_filename = f"Error_Log_{timestamp}.log"
 
     # -------------------------------------------------------------------------------
     # Create an in-memory log stream only once
@@ -55,15 +58,12 @@ def LOGGER_CONFIGURATION():
             st.session_state.log_stream
         )
 
-        formatter = logging.Formatter( "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-                                       datefmt="%Y-%m-%d %H:%M:%S"
-                                       )
+        formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
-        #file_handler.setFormatter(formatter)
+        # file_handler.setFormatter(formatter)
         stream_handler.setFormatter(formatter)
 
-        #logger.addHandler(file_handler)
+        # logger.addHandler(file_handler)
         logger.addHandler(stream_handler)
 
     return logger
-

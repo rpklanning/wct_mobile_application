@@ -1,3 +1,6 @@
+"""
+Module handles uploading and downloading data from database tables on the Neon website.
+"""
 import os
 import pandas as pd
 import psycopg2
@@ -5,7 +8,6 @@ from psycopg2 import sql
 import logging
 import streamlit as st
 import uuid
-from typing import Optional
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
@@ -18,7 +20,7 @@ def READ_NEON_DB_TABLE_INTO_DATAFRAME(database_to_read, table_to_read):
     """
     Function will read the table of a Neon database and return a pandas dataframe.  Function requires a .env file
     containing the database URL and authorization key.  Databases to be read are limited to wct_data, wct_ledger, and
-    wct_unposted_ledger.  Logging of process and errors are captured in an "Error_Log_yyyymmdd_hhmmss.
+    wct_unposted_ledger.  Logging of process and errors are captured in an 'Error_Log_yyyymmdd_hhmmss'.
     :param database_to_read: name of the database to be read from Neon
     :param table_to_read: name of the database table to read from Neon
     :return: df dataframe containing the columns and data records
@@ -74,7 +76,7 @@ def READ_NEON_DB_TABLE_INTO_DATAFRAME(database_to_read, table_to_read):
 
             # get the names of the columns in the database which will be stored in the dataframe
             column_names = [desc[0] for desc in cursor.description]
-            # ADDED: Log columns found to help track schema mismatch errors
+            # log columns found to help track schema mismatch errors
             logger.debug(f"Table columns discovered: {column_names}")
 
             # load the data into a Pandas dataframe
@@ -155,49 +157,30 @@ def GET_NEON_DATABASE_ENGINE(database_to_write, table_to_write) -> Engine:
 def UPLOAD_DATAFRAME_TO_NEON_DATABASE(
         df: pd.DataFrame,
         database_name: str,
-        table_name: str,
-        database_url: Optional[str] = None):
+        table_name: str):
     """
     Function will replace a PostgreSQL/Neon table with the contents of a dataFrame in the following sequence:
 
     1.  Check that the dataframe being passed is valid.
     2.  Validate the database name and the table name have been passed
     3.  Validate that the database name and table name are valid SQL identifiers
-    Create a staging table using the target table's structure.
-    2. Copy the dataframe into the staging table.
-    3. Verify all dataframe rows were copied.
-    4. Replace the target table contents from staging.
-    5. Verify the final row count.
-    6. Commit the transaction.
+    4.  Get length of the dataframe
+    5.  Connect to database engine
+    6.  Confirm connection to correct database
+    7.  Create staging table using the target tables data structure
+    8.  Copy the dataframe into the staging table
+    9.  Check the number of rows in the staging table and compare to the length of the dataframe
+    10. Replace the existing target database table with the staging table
+    11. Check the length of the revised target database table and compare to the length of the dataframe
+    12. Delete the staging table
+    13. Commit the transaction or if error, roll back to the original target database
 
-    Parameters
-    ----------
-    df:
-        DataFrame containing the replacement data.
-
-    database_name:
-        Database name, e.g. "wct_unposted_ledger".
-        This is checked against the connected database.
-
-    table_name:
-        Target table, e.g. "unposted_ledger".
-
-    database_url:
-        Optional Neon/PostgreSQL connection string.
-        If omitted, NEON_DATABASE_URL is used.
-
-    Returns
-    -------
-    bool
-        Upload status is completed (True) or not completed (False).
-
-    Raises
-    ------
-    ValueError
-        If parameters are invalid or the row count verification fails.
-
-    Exception
-        Any database exception causes the transaction to roll back.
+    :param df - dataframe to be copied into the target database table
+    :param database_name - name of the target database to be modified
+    :param table_name - name of the target table within the target database to be modified
+    :return None
+    :raises ValueError - if parameter are invalid or row count checks are incorrect
+    :raises Exception - any database exception causes the transaction to roll back.
     """
     logger.info("")
     logger.info("------------------------------------------------------------------------------------")
@@ -290,9 +273,9 @@ def UPLOAD_DATAFRAME_TO_NEON_DATABASE(
             else:
                 logger.info(f"Validated - program is connected to to correct database: '{connected_database}'.")
 
-            # --------------------------------------------------------------------------------------------------------------
-            # Verify target table: table_name (to be modified) exists in the database and raise error if it does not exists.
-            # --------------------------------------------------------------------------------------------------------------
+            # ---------------------------------------------------------------------------------------------------------
+            # Verify target table: table_name to be modified exists in the database. Raise error if it does not exist
+            # ---------------------------------------------------------------------------------------------------------
             logger.info("")
             logger.info(f"Check if the table: {table_name} to be modified exists in database: {database_name}.")
 
@@ -354,7 +337,7 @@ def UPLOAD_DATAFRAME_TO_NEON_DATABASE(
             # -----------------------------------------------------
             # Load DataFrame into staging table.
             #
-            # pandas.to_sql uses SQLAlchemy and performs the insert
+            # pandas.to_SQL uses SQLAlchemy and performs the insert
             # through the same Neon database.
             # -----------------------------------------------------
             logger.info("")
@@ -392,7 +375,7 @@ def UPLOAD_DATAFRAME_TO_NEON_DATABASE(
 
             if staging_db_row_count != df_expected_rows:
                 raise RuntimeError(
-                    f"Error - Staging table to dataframe row count mismatch.  Reqd: Staging = dataframe."
+                    f"Error - Staging table to dataframe row count mismatch.  Required: Staging = dataframe."
                     f"Dataframe {df} row count: {df_expected_rows}, "
                     f"but Staging table {staging_table} contains: {staging_db_row_count} rows."
                 )
@@ -416,7 +399,7 @@ def UPLOAD_DATAFRAME_TO_NEON_DATABASE(
             # check that the row count of the staging db - original db table is 1
             if (staging_db_row_count - db_table_row_count) != 1:
                 raise RuntimeError(
-                    f"Error - Staging table to original table row count mismatch.  Reqd: Staging = 1 + original."
+                    f"Error - Staging table to original table row count mismatch.  Required: Staging = 1 + original."
                     f"Original table: {table_name} row count: {db_table_row_count}, "
                     f"but Staging table: {staging_table} contains: {staging_db_row_count} rows."
                 )
@@ -465,7 +448,7 @@ def UPLOAD_DATAFRAME_TO_NEON_DATABASE(
                 # rolls back automatically.
                 logger.info("")
                 logger.info("Check the mod database: {database_name} table: {table_name} row count vs the df size}")
-                msg = (f" Read modified database: {database_name} table: {table_name} data to get the row count.")
+                msg = f" Read modified database: {database_name} table: {table_name} data to get the row count."
                 logger.info(msg)
                 mod_table_final_count = replace_connection.execute(
                     text(
@@ -534,22 +517,16 @@ def UPLOAD_DATAFRAME_TO_NEON_DATABASE(
         logger.info("Success - disposed of database engine.")
 
 
-# TODO make uppercase
 def VALIDATE_SQL_IDENTIFIER(identifier: str) -> None:
     """
-    Validate a PostgreSQL identifier.
-
-    This intentionally permits only letters, numbers and underscores.
+    Function will validate a PostgreSQL identifier for the database and table.  This intentionally permits only
+    letters, numbers and underscores.
     """
     if not identifier:
-        raise ValueError("Identifier cannot be empty.")
+        raise ValueError("Error - Identifier cannot be empty.")
 
     if not identifier.replace("_", "").isalnum():
-        raise ValueError(
-            f"Invalid PostgreSQL identifier: {identifier!r}"
-        )
+        raise ValueError(f"Error - Invalid PostgreSQL identifier: {identifier!r}")
 
     if identifier[0].isdigit():
-        raise ValueError(
-            f"PostgreSQL identifier cannot start with a digit: {identifier!r}"
-        )
+        raise ValueError(f"Error - PostgreSQL identifier cannot start with a digit: {identifier!r}")

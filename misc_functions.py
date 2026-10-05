@@ -1,11 +1,9 @@
-import os
-import pandas as pd
-import psycopg2
-from psycopg2 import sql
+"""
+Module contains miscellaneous functions used by the Web Application
+"""
 from neon_db_manager import READ_NEON_DB_TABLE_INTO_DATAFRAME
 import logging
 import streamlit as st
-import datetime
 from datetime import date
 
 # setup error logging capture
@@ -13,19 +11,19 @@ logger = logging.getLogger("neon_db_app")
 
 
 def DATABASE_READ_AND_STREAMLIT_INPUT_GENERATION():
-    '''
+    """
     Function will call functions to do the following:
 
     1. Read the Neon database: wct_unposted_ledger, table: unposted_ledger and store in a dataframe.
     2. Read the Neon database: wct_data, table: projects_list and get a list of active projects.
     3. Read the Neon database: wct_data, table: suppliers_list and get a list of active suppliers.
-    4. Get the Neon database id key by determing the existing max value in the No column of dataframe: unposted_ledger.
-    Increment the max value by 1.
+    4. Get the Neon database id key by determining the existing max value in the No column of dataframe:
+    unposted_ledger.  Increment the max value by 1.
     5. Get todays date and format per the project requirement YYYYMMDD.
 
     The returned information will be stored in st.session.state variables.
     :return: None
-    '''
+    """
 
     logger.info("")
     logger.info("------------------------------------------------------------------------------------")
@@ -106,7 +104,6 @@ def GET_NEW_NO_COL_RECORD_VALUE(df):
 
     except KeyError as e:
         logger.error(f"KeyError captured: The column {e} does not exist in the DataFrame.")
-        lst_no_col_str = []
         no_col_next_value = "99999"
         return no_col_next_value
 
@@ -137,6 +134,7 @@ def GET_ACTIVE_RECORDS_FROM_DATABASE(df, dbase, get_column, status_column):
     Function will parse a dataframe, which is derived from a database, and return a list of values in a column
     (get_column) based on the value of another column (status_column) being "Active"
     :param df: dataframe containing the data to be obtained
+    :param dbase: database and table name
     :param get_column: column name to be returned from the dataframe based on the status_column
     :param status_column: column name which will be evaluated to confirm it is "Active"
     :return: active_list - list of get_column values or empty on Error
@@ -192,9 +190,9 @@ def CLEAR_CACHES_AND_CALL_UPDATE_DBASES():
     """
     Function will do the following:
     1. Clear the streamlit caches.  The caches to be cleared are:
-        READ_NEON_DB_TABLE_INTO_DATAFRAME - allows rereading of the databases
-        GET_NEW_NO_COL_RECORD_VALUE.clear() - allows getting the next value from the database
-        GET_ACTIVE_RECORDS_FROM_DATABASE.clear() - allows getting the active records from the databases
+        READ_NEON_DB_TABLE_INTO_DATAFRAME - allows rereading of each of the databases
+        GET_NEW_NO_COL_RECORD_VALUE.clear() - allows getting the next value from each of the databases
+        GET_ACTIVE_RECORDS_FROM_DATABASE.clear() - allows getting the active records from each of the databases
         GET_TODAYS_DATE_AND_FORMAT.clear() - allows getting todays date
 
         Caches are used so that streamlit does not read the databases every cycle only on explicit direction
@@ -228,7 +226,7 @@ def CLEAR_CACHES_AND_CALL_UPDATE_DBASES():
 
         status = "True"
         return status
-    except:
-
+    except Exception as e:
+        logger.error(f"Error - Program cannot continue due to exception: {e}")
         status = "False"
         return status

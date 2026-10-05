@@ -1,3 +1,14 @@
+"""
+Main Module containing the following functions:
+1.  __main__  program entry point
+
+2.  STREAMLIT_MAIN - function contains widgets and logic for web page widgets
+
+3.  BTN_SAVE_EVENT -  function will update the database, clear the caches, and reread the databases to update the
+streamlit widgets.
+
+4.  BTN_REFRESH_EVENT - function will clear the caches and reread the databases to update the streamlit widgets
+"""
 import io
 import time
 import streamlit as st
@@ -325,7 +336,8 @@ def STREAMLIT_MAIN():
                             logger.info("")
                             logger.info("Upload Photo to Cloudinary")
                             logger.info(
-                                "If toggle is true, call function to upload the photo to Cloudinary if image is NOT empty.")
+                                "If toggle is true, call function to upload the photo to Cloudinary if image is NOT "
+                                "empty.")
                             logger.info(f"Toggle selection: {st.session_state.toggle_upload_photo}")
 
                             # ==================================================
@@ -400,10 +412,11 @@ def STREAMLIT_MAIN():
 
                         except Exception as e:
                             st.error("❌ Error updating the database or saving files.  Retain receipts!")
+                            logger.info("Error - program workflow issue due to error {e}.")
                             time.sleep(2)
                             status_message_placeholder.empty()
 
-                        # call the function to refresh the databases and to update the streamlit hmi reqd
+                        # call the function to refresh the databases and to update the streamlit hmi
                         logger.info("")
                         logger.info("Call function to clear the caches and update the database derived information")
                         CLEAR_CACHES_AND_CALL_UPDATE_DBASES()
