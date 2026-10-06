@@ -12,7 +12,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 
 # setup error logging capture
-logger = logging.getLogger("neon_db_app")
+logger = logging.getLogger("wct_mobile_app")
 
 
 @st.cache_data

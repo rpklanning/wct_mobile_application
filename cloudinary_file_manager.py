@@ -9,7 +9,7 @@ import os
 import requests
 
 # setup error logging capture
-logger = logging.getLogger("neon_db_app")
+logger = logging.getLogger("wct_mobile_app")
 
 # load the Cloudinary credentials from the .eng file
 load_dotenv()

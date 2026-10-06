@@ -7,7 +7,7 @@ import streamlit as st
 from datetime import date
 
 # setup error logging capture
-logger = logging.getLogger("neon_db_app")
+logger = logging.getLogger("wct_mobile_app")
 
 
 def DATABASE_READ_AND_STREAMLIT_INPUT_GENERATION():

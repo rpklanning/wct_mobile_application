@@ -7,7 +7,7 @@ from datetime import datetime
 import logging
 
 # setup error logging capture
-logger = logging.getLogger("neon_db_app")
+logger = logging.getLogger("wct_mobile_app")
 
 
 def LOGGER_CONFIGURATION():
@@ -38,7 +38,7 @@ def LOGGER_CONFIGURATION():
     # Create a unique logger name for this session
     # -----------------------------------------------------------
     if "logger_name" not in st.session_state:
-        st.session_state.logger_name = f"neon_db_app_{st.session_state.log_filename}"
+        st.session_state.logger_name = f"wct_mobile_app_{st.session_state.log_filename}"
 
     # ---------------------------------------------------------
     # Configure this sessions logger's only once
